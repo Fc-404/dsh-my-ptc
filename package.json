@@ -1,0 +1,18 @@
+{
+  "name": "@local/dsh-my-ptc",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./plugin.js",
+  "exports": {
+    ".": "./plugin.js"
+  },
+  "peerDependencies": {
+    "billion-context": ">=0.1.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

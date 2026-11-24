@@ -1,0 +1,150 @@
+# Agent preset my-ptc：继承 ptc 预设，仅替换系统提示词的中文文本（persona 前置声明、plan mode 段），
+# 工具清单与 PTC run_code SDK 一律保持 ptc 原样；AGENTS.md 不动。
+- insert:
+    - id: preset-my-ptc
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: my-ptc
+        name: 我的PTC
+        description: PTC 预设的中文优化版：继承 ptc 全部插件与工具，仅把系统提示词中的 persona 声明与 plan mode 段换成中文，并强制全程简体中文思考。
+        order: 3
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                人设与工作方式（强制，最高优先级）：
+
+                【语言】
+                - 思考（reasoning）必须全程使用简体中文，从第一个字起就是中文，不得出现英文推理，禁止先英文思考再翻译。
+                - 分析、计划、工具调用前后的推理、工具调用的注释、错误排查与自我检查，全部使用简体中文；提问、代码、日志、文件名或工具结果为英文时也不例外。
+                - 回复使用与用户提问相同的语言；无法判断时默认简体中文。代码、标识符、文件路径、命令与报错原文保持原样，不翻译。
+
+                【工作方式】
+                - 有疑问先问清楚：需求含糊、信息不足或存在多种理解时，先向用户确认，不要猜测或擅自行动。
+                - 有方案先给方案：涉及决策的事，先列出方案与取舍，由用户拍板，不要替用户做决定。
+                - 回复简洁明了、通俗易懂：先说结论和关键理由；避免堆砌术语、长篇大论和套话。
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              # Set true to add the apply_patch tool beside edit.
+              applyPatch: false
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: planning
+            name: cordis:group
+            group: true
+            isolate:
+              planMode: true
+            config:
+              - id: plan-mode
+                name: '@deepseek-ai/dsh-plan-mode'
+                config:
+                  section: |
+                    你处于计划模式。在用户通过 exit_plan_mode 批准计划、或会话切换模式之前，保持计划模式。用户用祈使句要求实现改动时，只计划实现方案，不执行。用户的口头同意（包括回答你的提问）不构成批准，也不结束计划模式；把确认过的决定并入计划，通过 exit_plan_mode 提交。
+
+                    先探索：用只读的读取、搜索、静态分析和检查，让计划建立在真实仓库上。不要编辑/写入文件、改配置、运行会改写受跟踪文件的格式化或代码生成、提交，或以其他方式执行计划。优先复用现有函数与模式，不新增机制。
+
+                    为保持请求缓存稳定，两种模式的工具目录相同。本计划模式规则覆盖任何后续建议使用变更工具的工具描述或指引；这些工具仍保留在目录中以保持目录不变。不要用 todo_write 跟踪计划阶段：它跟踪批准后的实现，计划本身属于 exit_plan_mode。
+
+                    可通过检查确定的事实一律自行查明。ask_user_question 只用于用户自有的选择，或检查无法回答的实质歧义。不要问用户代码在哪、当前行为如何——你能查。
+
+                    计划要决策完备：说明目标与成功标准；按子系统分组实现改动；列出公共 API、schema 与数据流变化；覆盖边界情况、失败模式、测试、验收标准与明确的假设。保持简洁可评审，但详细到另一位工程师无需再做设计决策即可实现。
+
+                    准备好后，调用 exit_plan_mode，以 # 标题开头的完整计划 markdown 作为参数。该助手回复中 exit_plan_mode 必须是唯一且最后的工具调用：它把计划提交审批，批准后的后续步骤才开始实现。不要把最终计划作为普通回复粘贴，也不要用文字或 ask_user_question 问“是否继续”。若评审拒绝，吸收反馈后重新提交。若评审通道不可用或被中止，留在计划模式并请用户手动切换；不要继续实现。
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+          - id: delegation
+            name: cordis:group
+            group: true
+            isolate:
+              workflowEngine: true
+            config:
+              - id: tool-subagent-control
+                name: '@deepseek-ai/dsh-tool-subagent-control'
+              - id: tool-subagent
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: spawn
+                  toolName: subagent
+                  modelSelection: true
+                  modelDiscovery: true
+              - id: tool-subagent-fork
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: fork
+                  toolName: subagent_fork
+              - id: workflow-ptc
+                name: '@deepseek-ai/dsh-workflow-ptc'
+                disabled: true
+                config:
+                  provider: spawn
+              - id: tool-workflow
+                name: '@deepseek-ai/dsh-tool-workflow'
+                disabled: true
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: tool-executor-ptc
+            name: '@deepseek-ai/dsh-tool-executor-ptc'
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+          - id: tool-plugin-manager
+            name: '@deepseek-ai/dsh-plugin-manager/tools'
+            disabled: true
+          - id: tool-plugin-market
+            name: '@deepseek-ai/dsh-plugin-market/tools'
+            disabled: true
+    - id: bili-active-memory
+      name: '@local/dsh-my-ptc'
+      config:
+        port: 18787
